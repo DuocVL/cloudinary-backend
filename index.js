@@ -22,6 +22,7 @@ const YOUR_DOMAIN = process.env.RAILWAY_STATIC_URL;
 
 app.get('/create-payment-link', async (req, res) => {
   const { amount, description, orderCode } = req.query;
+  console.log("Received query parameters:", req.query);
 
   // Kiểm tra xem các tham số bắt buộc có được cung cấp không
   if (!amount || !description || !orderCode) {
@@ -31,7 +32,7 @@ app.get('/create-payment-link', async (req, res) => {
   const order = {
     amount: parseInt(amount),
     description: description,
-    orderCode: String(orderCode),
+    orderCode: orderCode,
     returnUrl: `${YOUR_DOMAIN}/success.html`,
     cancelUrl: `${YOUR_DOMAIN}/cancel.html`,
   };
