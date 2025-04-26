@@ -4,13 +4,13 @@ const PayOS = require('@payos/node');
 // Lấy các biến môi trường từ Railway
 const PAYOS_CLIENT_ID = process.env.PAYOS_CLIENT_ID;
 const PAYOS_API_KEY = process.env.PAYOS_API_KEY;
-const PAYOS_CHECKSUMKEY = process.env.PAYOS_CHECKSUMKEY;
+const PAYOS_CHECKSUM_KEY = process.env.PAYOS_CHECKSUM_KEY;
 
 // Khởi tạo đối tượng PayOS với các biến môi trường
 const payos = new PayOS(
   PAYOS_CLIENT_ID,
   PAYOS_API_KEY,
-  PAYOS_CHECKSUMKEY,
+  PAYOS_CHECKSUM_KEY,
 );
 
 const app = express();
