@@ -30,9 +30,9 @@ app.get('/create-payment-link', async (req, res) => {
   }
 
   const order = {
-    amount: parseInt(amount),
+    amount: Number(amount),
     description: description,
-    orderCode: orderCode,
+    orderCode: Number(orderCode),
     returnUrl: `${YOUR_DOMAIN}/success.html`,
     cancelUrl: `${YOUR_DOMAIN}/cancel.html`,
   };
