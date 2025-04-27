@@ -47,9 +47,8 @@ app.get('/create-payment-link', async (req, res) => {
 
 
 // Route webhook nhận callback từ PayOS
-import { createHmac } from "crypto";
 
-
+const { createHmac } = require('crypto');
 function sortObjDataByKey(object) {
       const orderedObject = Object.keys(object)
         .sort()
