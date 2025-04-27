@@ -60,6 +60,7 @@ const db = admin.firestore();
 // Route webhook nhận callback từ PayOS
 
 const { createHmac } = require('crypto');
+const { ref } = require('process');
 function sortObjDataByKey(object) {
       const orderedObject = Object.keys(object)
         .sort()
@@ -119,8 +120,8 @@ app.post('/payment-callback', async (req, res) => {
     await transactionRef.set({
       amount: data.amount,
       description: data.description,
-      status: data.status,
-      transactionId: data.transactionId,
+      reference: data.reference,
+      //transactionId: data.transactionId,
       paymentLinkId: data.paymentLinkId,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
