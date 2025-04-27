@@ -44,29 +44,38 @@ app.get('/create-payment-link', async (req, res) => {
 });
 
 // Route webhook nhận callback từ PayOS
-app.post("/payment-callback", async (req, res) => {
+const crypto = require('crypto');
+
+function verifySignature(data, signature, checksumKey) {
+  const jsonString = JSON.stringify(data);
+  const hash = crypto.createHmac('sha256', checksumKey)
+                     .update(jsonString)
+                     .digest('hex');
+  return hash === signature;
+}
+
+app.post('/payment-callback', async (req, res) => {
   console.log('Webhook received:', req.body);
 
   const { data, signature } = req.body;
 
   try {
-    // ✅ Xác thực chữ ký an toàn
-    const isValid = payos.verifyPaymentWebhook(req.body, signature);
+    const isValid = verifySignature(data, signature, PAYOS_CHECKSUM_KEY);
     if (!isValid) {
       console.warn('Invalid signature');
       return res.status(400).send('Invalid signature');
     }
 
-    // ✅ Xử lý data đơn hàng ở đây (ví dụ: cập nhật trạng thái đơn hàng)
+    // Xử lý data đơn hàng
     console.log('Payment Data:', data);
 
-    // Phản hồi về cho PayOS biết đã nhận được (bắt buộc gửi 200 OK)
     res.status(200).send('Webhook received successfully');
   } catch (error) {
     console.error('Error handling webhook:', error);
     res.status(500).send('Error handling webhook');
   }
 });
+
 
 // Start server
 const PORT = process.env.PORT || 3000;
