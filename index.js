@@ -47,7 +47,7 @@ app.get('/create-payment-link', async (req, res) => {
 
 
 // Route webhook nhận callback từ PayOS
-const crypto = require('crypto');
+import { createHmac } from "crypto";
 
 
 function sortObjDataByKey(object) {
