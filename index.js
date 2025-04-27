@@ -43,7 +43,16 @@ app.get('/create-payment-link', async (req, res) => {
   }
 });
 
+const admin = require('firebase-admin');
 
+// Initialize Firestore
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.applicationDefault(),
+  });
+}    
+
+const db = admin.firestore();
 
 
 // Route webhook nhận callback từ PayOS
@@ -101,45 +110,23 @@ app.post('/payment-callback', async (req, res) => {
 
     // Xử lý data đơn hàng
     console.log('Payment Data:', data);
-
     res.status(200).send('Webhook received successfully');
+
+    // Lưu thông tin đơn hàng vào Firestore
+    const transactionRef = db.collection('transactions').doc(String(data.orderCode));
+    await transactionRef.set({
+      amount: data.amount,
+      description: data.description,
+      status: data.status,
+      transactionId: data.transactionId,
+      paymentLinkId: data.paymentLinkId,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
   } catch (error) {
     console.error('Error handling webhook:', error);
     res.status(500).send('Error handling webhook');
   }
 });
-
-
-// function verifySignature(data, signature, checksumKey) {
-//   const jsonString = JSON.stringify(data);
-//   const hash = crypto.createHmac('sha256', checksumKey)
-//                      .update(jsonString)
-//                      .digest('hex');
-//   return hash === signature;
-// }
-
-// app.post('/payment-callback', async (req, res) => {
-//   console.log('Webhook received:', req.body);
-
-//   const { data, signature } = req.body;
-
-//   try {
-//     const isValid = verifySignature(data, signature, PAYOS_CHECKSUM_KEY);
-//     if (!isValid) {
-//       console.warn('Invalid signature');
-//       return res.status(400).send('Invalid signature');
-//     }
-
-//     // Xử lý data đơn hàng
-//     console.log('Payment Data:', data);
-
-//     res.status(200).send('Webhook received successfully');
-//   } catch (error) {
-//     console.error('Error handling webhook:', error);
-//     res.status(500).send('Error handling webhook');
-//   }
-// });
-
 
 // Start server
 const PORT = process.env.PORT || 3000;
