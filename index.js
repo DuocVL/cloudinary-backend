@@ -43,15 +43,49 @@ app.get('/create-payment-link', async (req, res) => {
   }
 });
 
+
+
+
 // Route webhook nhận callback từ PayOS
 const crypto = require('crypto');
 
-function verifySignature(data, signature, checksumKey) {
-  const jsonString = JSON.stringify(data);
-  const hash = crypto.createHmac('sha256', checksumKey)
-                     .update(jsonString)
-                     .digest('hex');
-  return hash === signature;
+
+function sortObjDataByKey(object) {
+      const orderedObject = Object.keys(object)
+        .sort()
+        .reduce((obj, key) => {
+          obj[key] = object[key];
+          return obj;
+        }, {});
+      return orderedObject;
+    }
+
+function convertObjToQueryStr(object) {
+      return Object.keys(object)
+        .filter((key) => object[key] !== undefined)
+        .map((key) => {
+          let value = object[key];
+          // Sort nested object
+          if (value && Array.isArray(value)) {
+            value = JSON.stringify(value.map((val) => sortObjDataByKey(val)));
+          }
+          // Set empty string if null
+          if ([null, undefined, "undefined", "null"].includes(value)) {
+            value = "";
+          }
+
+          return `${key}=${value}`;
+        })
+        .join("&");
+}
+
+function isValidData(data, currentSignature, checksumKey) {
+      const sortedDataByKey = sortObjDataByKey(data);
+      const dataQueryStr = convertObjToQueryStr(sortedDataByKey);
+      const dataToSignature = createHmac("sha256", checksumKey)
+        .update(dataQueryStr)
+        .digest("hex");
+      return dataToSignature == currentSignature;
 }
 
 app.post('/payment-callback', async (req, res) => {
@@ -60,7 +94,7 @@ app.post('/payment-callback', async (req, res) => {
   const { data, signature } = req.body;
 
   try {
-    const isValid = verifySignature(data, signature, PAYOS_CHECKSUM_KEY);
+    const isValid = isValidData(data,signature,PAYOS_CHECKSUM_KEY);
     if (!isValid) {
       console.warn('Invalid signature');
       return res.status(400).send('Invalid signature');
@@ -75,6 +109,37 @@ app.post('/payment-callback', async (req, res) => {
     res.status(500).send('Error handling webhook');
   }
 });
+
+
+// function verifySignature(data, signature, checksumKey) {
+//   const jsonString = JSON.stringify(data);
+//   const hash = crypto.createHmac('sha256', checksumKey)
+//                      .update(jsonString)
+//                      .digest('hex');
+//   return hash === signature;
+// }
+
+// app.post('/payment-callback', async (req, res) => {
+//   console.log('Webhook received:', req.body);
+
+//   const { data, signature } = req.body;
+
+//   try {
+//     const isValid = verifySignature(data, signature, PAYOS_CHECKSUM_KEY);
+//     if (!isValid) {
+//       console.warn('Invalid signature');
+//       return res.status(400).send('Invalid signature');
+//     }
+
+//     // Xử lý data đơn hàng
+//     console.log('Payment Data:', data);
+
+//     res.status(200).send('Webhook received successfully');
+//   } catch (error) {
+//     console.error('Error handling webhook:', error);
+//     res.status(500).send('Error handling webhook');
+//   }
+// });
 
 
 // Start server
