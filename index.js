@@ -31,7 +31,7 @@ app.get('/create-payment-link', async (req, res) => {
     orderCode: Number(orderCode),
     returnUrl: `${YOUR_DOMAIN}/success.html`,
     cancelUrl: `${YOUR_DOMAIN}/cancel.html`,
-    //notifyUrl: `${YOUR_DOMAIN}/payment-callback`, // 👈 webhook URL gửi về đây
+    notifyUrl: `${YOUR_DOMAIN}/payment-callback`, // 👈 webhook URL gửi về đây
   };
 
   try {
