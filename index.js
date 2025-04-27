@@ -44,13 +44,15 @@ app.get('/create-payment-link', async (req, res) => {
 });
 
 const admin = require('firebase-admin');
+// Parse JSON từ biến môi trường
+const serviceAccount = JSON.parse(process.env.GOOGLE_CREDENTIALS);
 
 // Initialize Firestore
 if (!admin.apps.length) {
   admin.initializeApp({
-    credential: admin.credential.applicationDefault(),
+    credential: admin.credential.cert(serviceAccount),
   });
-}    
+}
 
 const db = admin.firestore();
 
