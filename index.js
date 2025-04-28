@@ -1,10 +1,18 @@
+// 📂 File: server.js
 const express = require('express');
 const PayOS = require('@payos/node');
 const cors = require("cors");
+const admin = require('firebase-admin');
+const { createHmac } = require('crypto');
 
 const PAYOS_CLIENT_ID = process.env.PAYOS_CLIENT_ID;
 const PAYOS_API_KEY = process.env.PAYOS_API_KEY;
 const PAYOS_CHECKSUM_KEY = process.env.PAYOS_CHECKSUM_KEY;
+const YOUR_DOMAIN = process.env.RAILWAY_STATIC_URL;
+
+const app = express();
+app.use(cors());
+app.use(express.json());
 
 const payos = new PayOS(
   PAYOS_CLIENT_ID,
@@ -12,14 +20,19 @@ const payos = new PayOS(
   PAYOS_CHECKSUM_KEY,
 );
 
-const app = express();
-app.use(cors());
-app.use("/",express.static("public"));
-app.use(express.json()); // ⚡ Quan trọng để đọc body webhook
+// Serve static if needed
+app.use("/", express.static("public"));
 
-const YOUR_DOMAIN = process.env.RAILWAY_STATIC_URL;
+// Firebase
+const serviceAccount = JSON.parse(process.env.GOOGLE_CREDENTIALS);
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+  });
+}
+const db = admin.firestore();
 
-// Route tạo link thanh toán
+// 👉 Route tạo link thanh toán
 app.get('/create-payment-link', async (req, res) => {
   const { amount, description, orderCode } = req.query;
   if (!amount || !description || !orderCode) {
@@ -28,7 +41,7 @@ app.get('/create-payment-link', async (req, res) => {
 
   const order = {
     amount: Number(amount),
-    description : "Thanh toan don hang",
+    description: description,
     orderCode: Number(orderCode),
     items: [
       {
@@ -37,9 +50,9 @@ app.get('/create-payment-link', async (req, res) => {
         price: 2000,
       },
     ],
-    returnUrl: `${YOUR_DOMAIN}/success.html`,
-    cancelUrl: `${YOUR_DOMAIN}/cancel.html`,
-    //notifyUrl: `${YOUR_DOMAIN}/payment-callback`, // 👈 webhook URL gửi về đây
+    returnUrl: `${YOUR_DOMAIN}/payment-success`,
+    cancelUrl: `${YOUR_DOMAIN}/payment-cancel`,
+    //notifyUrl: `${YOUR_DOMAIN}/payment-callback`,
   };
 
   try {
@@ -51,60 +64,39 @@ app.get('/create-payment-link', async (req, res) => {
   }
 });
 
-const admin = require('firebase-admin');
-// Parse JSON từ biến môi trường
-const serviceAccount = JSON.parse(process.env.GOOGLE_CREDENTIALS);
-
-// Initialize Firestore
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-  });
+// 👉 Route payment callback (webhook)
+function sortObjDataByKey(object) {
+  return Object.keys(object)
+    .sort()
+    .reduce((obj, key) => {
+      obj[key] = object[key];
+      return obj;
+    }, {});
 }
 
-const db = admin.firestore();
-
-
-// Route webhook nhận callback từ PayOS
-
-const { createHmac } = require('crypto');
-const { ref } = require('process');
-function sortObjDataByKey(object) {
-      const orderedObject = Object.keys(object)
-        .sort()
-        .reduce((obj, key) => {
-          obj[key] = object[key];
-          return obj;
-        }, {});
-      return orderedObject;
-    }
-
 function convertObjToQueryStr(object) {
-      return Object.keys(object)
-        .filter((key) => object[key] !== undefined)
-        .map((key) => {
-          let value = object[key];
-          // Sort nested object
-          if (value && Array.isArray(value)) {
-            value = JSON.stringify(value.map((val) => sortObjDataByKey(val)));
-          }
-          // Set empty string if null
-          if ([null, undefined, "undefined", "null"].includes(value)) {
-            value = "";
-          }
-
-          return `${key}=${value}`;
-        })
-        .join("&");
+  return Object.keys(object)
+    .filter((key) => object[key] !== undefined)
+    .map((key) => {
+      let value = object[key];
+      if (value && Array.isArray(value)) {
+        value = JSON.stringify(value.map((val) => sortObjDataByKey(val)));
+      }
+      if ([null, undefined, "undefined", "null"].includes(value)) {
+        value = "";
+      }
+      return `${key}=${value}`;
+    })
+    .join("&");
 }
 
 function isValidData(data, currentSignature, checksumKey) {
-      const sortedDataByKey = sortObjDataByKey(data);
-      const dataQueryStr = convertObjToQueryStr(sortedDataByKey);
-      const dataToSignature = createHmac("sha256", checksumKey)
-        .update(dataQueryStr)
-        .digest("hex");
-      return dataToSignature == currentSignature;
+  const sortedDataByKey = sortObjDataByKey(data);
+  const dataQueryStr = convertObjToQueryStr(sortedDataByKey);
+  const dataToSignature = createHmac("sha256", checksumKey)
+    .update(dataQueryStr)
+    .digest("hex");
+  return dataToSignature == currentSignature;
 }
 
 app.post('/payment-callback', async (req, res) => {
@@ -113,23 +105,20 @@ app.post('/payment-callback', async (req, res) => {
   const { data, signature } = req.body;
 
   try {
-    const isValid = isValidData(data,signature,PAYOS_CHECKSUM_KEY);
+    const isValid = isValidData(data, signature, PAYOS_CHECKSUM_KEY);
     if (!isValid) {
       console.warn('Invalid signature');
       return res.status(400).send('Invalid signature');
     }
 
-    // Xử lý data đơn hàng
     console.log('Payment Data:', data);
     res.status(200).send('Webhook received successfully');
 
-    // Lưu thông tin đơn hàng vào Firestore
     const transactionRef = db.collection('transactions').doc(String(data.orderCode));
     await transactionRef.set({
       amount: data.amount,
       description: data.description,
       reference: data.reference,
-      //transactionId: data.transactionId,
       paymentLinkId: data.paymentLinkId,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
@@ -139,10 +128,29 @@ app.post('/payment-callback', async (req, res) => {
   }
 });
 
-// Start server
-const PORT = process.env.PORT || 3000;
-app.use((req, res) => {
-  res.status(404).sendFile(__dirname + '/public/404.html'); // fallback nếu cần
+// 👉 Route trả về trạng thái thanh toán cho Android app
+app.get('/payment-success', (req, res) => {
+  res.json({
+    status: "success",
+    message: "Payment successful"
+  });
 });
 
+app.get('/payment-cancel', (req, res) => {
+  res.json({
+    status: "cancel",
+    message: "Payment canceled"
+  });
+});
+
+// Fallback 404
+app.use((req, res) => {
+  res.status(404).json({
+    status: "error",
+    message: "Not Found"
+  });
+});
+
+// Start server
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server is running on port ${PORT}`));
