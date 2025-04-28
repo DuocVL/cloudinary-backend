@@ -1,5 +1,6 @@
 const express = require('express');
 const PayOS = require('@payos/node');
+const cors = require("cors");
 const bodyParser = require('body-parser');
 
 const PAYOS_CLIENT_ID = process.env.PAYOS_CLIENT_ID;
@@ -13,7 +14,8 @@ const payos = new PayOS(
 );
 
 const app = express();
-app.use("/",express.static('public'));
+app.use(cors());
+app.use("/",express.static("public"));
 app.use(express.json()); // ⚡ Quan trọng để đọc body webhook
 
 const YOUR_DOMAIN = process.env.RAILWAY_STATIC_URL;
@@ -27,8 +29,15 @@ app.get('/create-payment-link', async (req, res) => {
 
   const order = {
     amount: Number(amount),
-    description,
+    description : "Thanh toan don hang",
     orderCode: Number(orderCode),
+    items: [
+      {
+        name: "Mì tôm Hảo Hảo ly",
+        quantity: 1,
+        price: 2000,
+      },
+    ],
     returnUrl: `${YOUR_DOMAIN}/success.html`,
     cancelUrl: `${YOUR_DOMAIN}/cancel.html`,
     notifyUrl: `${YOUR_DOMAIN}/payment-callback`, // 👈 webhook URL gửi về đây
