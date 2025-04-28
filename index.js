@@ -1,7 +1,6 @@
 const express = require('express');
 const PayOS = require('@payos/node');
 const cors = require("cors");
-const bodyParser = require('body-parser');
 
 const PAYOS_CLIENT_ID = process.env.PAYOS_CLIENT_ID;
 const PAYOS_API_KEY = process.env.PAYOS_API_KEY;
