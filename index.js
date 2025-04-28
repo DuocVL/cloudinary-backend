@@ -141,4 +141,8 @@ app.post('/payment-callback', async (req, res) => {
 
 // Start server
 const PORT = process.env.PORT || 3000;
+app.use((req, res) => {
+  res.status(404).sendFile(__dirname + '/public/404.html'); // fallback nếu cần
+});
+
 app.listen(PORT, () => console.log(`Server is running on port ${PORT}`));
