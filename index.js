@@ -1,9 +1,10 @@
-// 📂 File: server.js
+
 const express = require('express');
 const PayOS = require('@payos/node');
 const cors = require("cors");
 const admin = require('firebase-admin');
 const { createHmac } = require('crypto');
+const { console } = require('inspector');
 
 const PAYOS_CLIENT_ID = process.env.PAYOS_CLIENT_ID;
 const PAYOS_API_KEY = process.env.PAYOS_API_KEY;
@@ -130,6 +131,7 @@ app.post('/payment-callback', async (req, res) => {
 
 // 👉 Route trả về trạng thái thanh toán cho Android app
 app.get('/payment-success', (req, res) => {
+  console.log('Payment success:', req.query);
   res.json({
     status: "success",
     message: "Payment successful"
@@ -137,23 +139,11 @@ app.get('/payment-success', (req, res) => {
 });
 
 app.get('/payment-cancel', (req, res) => {
+  console.log('Payment canceled:', req.query);
   res.json({
     status: "cancel",
     message: "Payment canceled"
   });
-});
-
-// Fallback 404
-app.use((req, res) => {
-  res.status(404).json({
-    status: "error",
-    message: "Not Found"
-  });
-});
-
-app.use((err, req, res, next) => {
-  console.error("Server Error:", err.stack);
-  res.status(500).send('Internal Server Error');
 });
 
 
