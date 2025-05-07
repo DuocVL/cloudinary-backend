@@ -67,38 +67,57 @@ function isValidData(data, currentSignature, checksumKey) {
   return dataToSignature === currentSignature;
 }
 
-// Route: create payment link
 app.get("/create-payment-link", async (req, res) => {
   try {
     const { packageId } = req.query;
-    console.log("Received package:", packageId);
+    console.log("Received package ID:", packageId);
+
     if (!packageId) {
-      return res.status(400).send("Package is required");
+      return res.status(400).send("Thiếu thông tin gói đăng ký.");
     }
-    // Create a unique order code using ulid
+
+    let amount;
+    let description;
+    let itemName;
+
+    if (packageId == "1") {
+      amount = 30000;
+      description = "Thanh toán gói đăng ký theo tháng";
+      itemName = "Gói theo tháng";
+    } else if (packageId == "2") {
+      amount = 99000;
+      description = "Thanh toán gói đăng ký theo quý";
+      itemName = "Gói theo quý";
+    } else if (packageId == "3") {
+      amount = 299000;
+      description = "Thanh toán gói đăng ký theo năm";
+      itemName = "Gói theo năm";
+    } else {
+      return res.status(400).send("Gói đăng ký không hợp lệ.");
+    }
+
+    // Tạo mã đơn hàng duy nhất sử dụng timestamp
     const order = {
       orderCode: Number(String(Date.now())),
-      amount: 2000,
-      description: "Thanh toan don hang",
+      amount: amount,
+      description: description,
       items: [
         {
-          name: "Mì tôm Hảo Hảo ly",
+          name: itemName,
           quantity: 1,
-          price: 2000,
+          price: amount,
         },
       ],
       returnUrl: `${YOUR_DOMAIN}/payment-success`,
       cancelUrl: `${YOUR_DOMAIN}/payment-cancel`,
     };
-    console.log("Creating payment link with order:", order);
+    console.log("Tạo liên kết thanh toán với đơn hàng:", order);
 
     const paymentLink = await payos.createPaymentLink(order);
-    //res.status(200).json({ url: paymentLink.checkoutUrl });
     res.redirect(paymentLink.checkoutUrl);
   } catch (error) {
-    console.error("Error creating payment link:", error);
-    //res.status(500).json({ error: "Error creating payment link." });
-    res.send("Something went error");
+    console.error("Lỗi khi tạo liên kết thanh toán:", error);
+    res.send("Đã xảy ra lỗi khi tạo liên kết thanh toán.");
   }
 });
 
