@@ -70,9 +70,9 @@ function isValidData(data, currentSignature, checksumKey) {
 // Route: create payment link
 app.get("/create-payment-link", async (req, res) => {
   try {
-    const { package} = req.query;
-    console.log("Received package:", package);
-    if (!package) {
+    const { packageId } = req.query;
+    console.log("Received package:", packageId);
+    if (!packageId) {
       return res.status(400).send("Package is required");
     }
     // Create a unique order code using ulid
