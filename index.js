@@ -37,9 +37,9 @@ const db = admin.firestore();
 // Server: /create-payment-link route
 app.post('/create-payment-link', async (req, res) => {
   const { amount, description, orderCode } = req.query;
-  if (!amount || !description || !orderCode) {
-    return res.status(400).send("Vui lòng cung cấp amount, description và orderCode.");
-  }
+  // if (!amount || !description || !orderCode) {
+  //   return res.status(400).send("Vui lòng cung cấp amount, description và orderCode.");
+  // }
 
   const order = {
     orderCode: Number(String(Date.now()).slice(-6)),
