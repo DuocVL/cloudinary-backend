@@ -67,7 +67,7 @@ function isValidData(data, currentSignature, checksumKey) {
 }
 
 // Route: create payment link
-app.post("/create-payment-link", async (req, res) => {
+app.get("/create-payment-link", async (req, res) => {
   try {
     const order = {
       orderCode: Number(String(Date.now()).slice(-6)),
@@ -124,12 +124,12 @@ app.post("/payment-callback", async (req, res) => {
 // Route: payment result pages
 app.get("/payment-success", (req, res) => {
   console.log("Payment success:", req.query);
-  res.json({ status: "success", message: "Payment successful" });
+  res.json(req.query);
 });
 
 app.get("/payment-cancel", (req, res) => {
   console.log("Payment canceled:", req.query);
-  res.json({ status: "cancel", message: "Payment canceled" });
+  res.json(req.query);
 });
 
 // Debug route for webhook testing
@@ -143,123 +143,3 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ Server is running at http://localhost:${PORT}`);
 });
 
-
-
-// const express = require('express');
-// const bodyParser = require('body-parser');
-// const axios = require('axios'); // Thêm thư viện axios để thực hiện HTTP requests
-
-// const app = express();
-// const port = process.env.PORT || 3000;
-
-// app.use(bodyParser.json());
-
-// let items = [
-//   { id: 1, name: 'Item 1' },
-//   { id: 2, name: 'Item 2' },
-// ];
-// let nextId = 3;
-
-// app.get('/items', (req, res) => {
-//   res.json(items);
-// });
-
-// app.get('/items/:id', (req, res) => {
-//   const itemId = parseInt(req.params.id);
-//   const item = items.find(item => item.id === itemId);
-
-//   if (item) {
-//     res.json(item);
-//   } else {
-//     res.status(404).json({ message: 'Item not found' });
-//   }
-// });
-
-// app.post('/items', (req, res) => {
-//   const newItem = {
-//     id: nextId++,
-//     name: req.body.name,
-//   };
-//   items.push(newItem);
-//   res.status(201).json(newItem);
-// });
-
-// app.put('/items/:id', (req, res) => {
-//   const itemId = parseInt(req.params.id);
-//   const itemIndex = items.findIndex(item => item.id === itemId);
-
-//   if (itemIndex !== -1) {
-//     items[itemIndex].name = req.body.name;
-//     res.json(items[itemIndex]);
-//   } else {
-//     res.status(404).json({ message: 'Item not found' });
-//   }
-// });
-
-// app.delete('/items/:id', (req, res) => {
-//   const itemId = parseInt(req.params.id);
-//   const initialLength = items.length;
-//   items = items.filter(item => item.id !== itemId);
-
-//   if (items.length < initialLength) {
-//     res.status(204).send();
-//   } else {
-//     res.status(404).json({ message: 'Item not found' });
-//   }
-// });
-
-// app.listen(port, () => {
-//   console.log(`Server listening on port ${port}`);
-
-//   // **Thêm đoạn code test cục bộ ở đây**
-//   const baseURL = `http://localhost:${port}`;
-
-//   async function runTests() {
-//     console.log('\n--- Running Local Tests ---');
-
-//     // Test GET all items
-//     try {
-//       const getResponse = await axios.get(`${baseURL}/items`);
-//       console.log('GET /items:', getResponse.status, getResponse.data);
-//     } catch (error) {
-//       console.error('GET /items Error:', error.message);
-//     }
-
-//     // Test POST new item
-//     try {
-//       const postResponse = await axios.post(`${baseURL}/items`, { name: 'Test Item' });
-//       console.log('POST /items:', postResponse.status, postResponse.data);
-//       const newItemId = postResponse.data.id;
-
-//       // Test GET single item
-//       try {
-//         const getSingleResponse = await axios.get(`${baseURL}/items/${newItemId}`);
-//         console.log(`GET /items/${newItemId}:`, getSingleResponse.status, getSingleResponse.data);
-//       } catch (error) {
-//         console.error(`GET /items/${newItemId} Error:`, error.message);
-//       }
-
-//       // Test PUT update item
-//       try {
-//         const putResponse = await axios.put(`${baseURL}/items/${newItemId}`, { name: 'Updated Test Item' });
-//         console.log(`PUT /items/${newItemId}:`, putResponse.status, putResponse.data);
-//       } catch (error) {
-//         console.error(`PUT /items/${newItemId} Error:`, error.message);
-//       }
-
-//       // Test DELETE item
-//       try {
-//         const deleteResponse = await axios.delete(`${baseURL}/items/${newItemId}`);
-//         console.log(`DELETE /items/${newItemId}:`, deleteResponse.status, deleteResponse.statusText);
-//       } catch (error) {
-//         console.error(`DELETE /items/${newItemId} Error:`, error.message);
-//       }
-//     } catch (error) {
-//       console.error('POST /items Error:', error.message);
-//     }
-
-//     console.log('--- Tests Finished ---');
-//   }
-
-//   runTests();
-// });
