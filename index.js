@@ -86,10 +86,12 @@ app.post("/create-payment-link", async (req, res) => {
     console.log("Creating payment link with order:", order);
 
     const paymentLink = await payos.createPaymentLink(order);
-    res.status(200).json({ url: paymentLink.checkoutUrl });
+    //res.status(200).json({ url: paymentLink.checkoutUrl });
+    res.redirect(paymentLink.checkoutUrl);
   } catch (error) {
     console.error("Error creating payment link:", error);
-    res.status(500).json({ error: "Error creating payment link." });
+    //res.status(500).json({ error: "Error creating payment link." });
+    res.send("Something went error");
   }
 });
 
