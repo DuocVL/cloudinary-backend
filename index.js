@@ -82,15 +82,15 @@ app.get("/create-payment-link", async (req, res) => {
 
     if (packageId == "1") {
       amount = 30000;
-      description = "Thanh toán gói đăng ký theo tháng";
+      description = "Tháng";
       itemName = "Gói theo tháng";
     } else if (packageId == "2") {
       amount = 99000;
-      description = "Thanh toán gói đăng ký theo quý";
+      description = "Quý";
       itemName = "Gói theo quý";
     } else if (packageId == "3") {
       amount = 299000;
-      description = "Thanh toán gói đăng ký theo năm";
+      description = "Năm";
       itemName = "Gói theo năm";
     } else {
       return res.status(400).send("Gói đăng ký không hợp lệ.");
@@ -100,7 +100,7 @@ app.get("/create-payment-link", async (req, res) => {
     const order = {
       orderCode: Number(String(Date.now())),
       amount: amount,
-      description: description,
+      description: `Thanh toán gói ${description}`, // Giới hạn 25 ký tự
       items: [
         {
           name: itemName,
