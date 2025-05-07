@@ -10,7 +10,7 @@ const { createHmac } = require('crypto');
 const PAYOS_CLIENT_ID = process.env.PAYOS_CLIENT_ID;
 const PAYOS_API_KEY = process.env.PAYOS_API_KEY;
 const PAYOS_CHECKSUM_KEY = process.env.PAYOS_CHECKSUM_KEY;
-const YOUR_DOMAIN = process.env.RAILWAY_STATIC_URL || 'http://127.0.0.1:3000';
+const YOUR_DOMAIN = process.env.RAILWAY_PUBLIC_DOMAIN || 'http://127.0.0.1:3000';
 const PORT = process.env.PORT || 3000;
 
 // PayOS instance
