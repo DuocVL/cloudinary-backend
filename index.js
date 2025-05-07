@@ -83,6 +83,7 @@ app.post("/create-payment-link", async (req, res) => {
       returnUrl: `${YOUR_DOMAIN}/payment-success`,
       cancelUrl: `${YOUR_DOMAIN}/payment-cancel`,
     };
+    console.log("Creating payment link with order:", order);
 
     const paymentLink = await payos.createPaymentLink(order);
     res.status(200).json({ url: paymentLink.checkoutUrl });
