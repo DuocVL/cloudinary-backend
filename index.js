@@ -2,14 +2,16 @@
 const express = require('express');
 const PayOS = require('@payos/node');
 const cors = require("cors");
-// const admin = require('firebase-admin');
-// const { createHmac } = require('crypto');
-// const { console } = require('inspector');
+require('dotenv').config();
+const admin = require('firebase-admin');
+const { createHmac } = require('crypto');
+//const { console } = require('inspector');
 
 const PAYOS_CLIENT_ID = process.env.PAYOS_CLIENT_ID;
 const PAYOS_API_KEY = process.env.PAYOS_API_KEY;
 const PAYOS_CHECKSUM_KEY = process.env.PAYOS_CHECKSUM_KEY;
 const YOUR_DOMAIN = process.env.RAILWAY_STATIC_URL;
+//const YOUR_DOMAIN = `http://localhost:3000`;
 
 const payos = new PayOS(
   PAYOS_CLIENT_ID,
@@ -24,7 +26,7 @@ app.use("/", express.static("public"));
 app.use(express.json());
 
 
-// Firebase
+//Firebase
 const serviceAccount = JSON.parse(process.env.GOOGLE_CREDENTIALS);
 if (!admin.apps.length) {
   admin.initializeApp({
@@ -154,7 +156,7 @@ app.get('/payment-cancel', (req, res) => {
 
 
 // Start server
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3030;
 
 // Start server
 app.post("/receive-hook",async (req,res) => {
@@ -165,3 +167,15 @@ app.listen(3000, () => console.log('Server is running on port 3000'));
 
 app.listen(PORT, function (){ console.log(`Server is running on port ${PORT}`)
 });
+
+// //Start server
+// app.post("/receive-hook",async (req,res) => {
+//   console.log(req.body);
+//   res.json();
+// });
+// app.listen(3000, () => console.log('Server is running on port 3000'));
+
+
+// app.listen(3030, function () {
+//   console.log(`Server is listening on port 3030`);
+// });
