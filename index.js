@@ -11,10 +11,6 @@ const PAYOS_API_KEY = process.env.PAYOS_API_KEY;
 const PAYOS_CHECKSUM_KEY = process.env.PAYOS_CHECKSUM_KEY;
 const YOUR_DOMAIN = process.env.RAILWAY_STATIC_URL;
 
-const app = express();
-app.use(cors());
-app.use(express.json());
-
 const payos = new PayOS(
   PAYOS_CLIENT_ID,
   PAYOS_API_KEY,
@@ -22,7 +18,11 @@ const payos = new PayOS(
 );
 
 // Serve static if needed
+const app = express();
+app.use(cors());
 app.use("/", express.static("public"));
+app.use(express.json());
+
 
 // Firebase
 const serviceAccount = JSON.parse(process.env.GOOGLE_CREDENTIALS);
@@ -34,16 +34,17 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 
 // 👉 Route tạo link thanh toán
-app.get('/create-payment-link', async (req, res) => {
+// Server: /create-payment-link route
+app.post('/create-payment-link', async (req, res) => {
   const { amount, description, orderCode } = req.query;
   if (!amount || !description || !orderCode) {
     return res.status(400).send("Vui lòng cung cấp amount, description và orderCode.");
   }
 
   const order = {
-    amount: Number(amount),
-    description: description,
-    orderCode: Number(orderCode),
+    orderCode: Number(String(Date.now()).slice(-6)),
+    amount: 2000,
+    description: "Thanh toan don hang",
     items: [
       {
         name: "Mì tôm Hảo Hảo ly",
@@ -53,15 +54,20 @@ app.get('/create-payment-link', async (req, res) => {
     ],
     returnUrl: `${YOUR_DOMAIN}/payment-success`,
     cancelUrl: `${YOUR_DOMAIN}/payment-cancel`,
-    //notifyUrl: `${YOUR_DOMAIN}/payment-callback`,
+    // notifyUrl: `${YOUR_DOMAIN}/payment-callback`, // Keep webhook for server confirmation
   };
 
   try {
     const paymentLink = await payos.createPaymentLink(order);
+    // Store order details or associate with user if needed before redirecting
+    // e.g., await db.collection('pending_orders').doc(String(orderCode)).set({ ... });
     res.redirect(303, paymentLink.checkoutUrl);
   } catch (error) {
     console.error("Error creating payment link:", error);
+    // Redirect to a generic error page or pass error info back?
     res.status(500).send("Error creating payment link.");
+    // Maybe redirect to cancelUrl with an error flag?
+    // res.redirect(303, `<span class="math-inline">\{YOUR\_DOMAIN\}/payment\-cancel?status\=false&orderCode\=</span>{orderCode}&error=creation_failed`);
   }
 });
 
@@ -130,6 +136,7 @@ app.post('/payment-callback', async (req, res) => {
 });
 
 // 👉 Route trả về trạng thái thanh toán cho Android app
+// 👉 Route trả về trạng thái thanh toán cho Android app
 app.get('/payment-success', (req, res) => {
   console.log('Payment success:', req.query);
   res.json({
@@ -149,4 +156,13 @@ app.get('/payment-cancel', (req, res) => {
 
 // Start server
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server is running on port ${PORT}`));
+
+// Start server
+app.post("/receive-hook",async (req,res) => {
+  console.log(req.body);
+  res.json();
+});
+app.listen(3000,'0.0.0.0', () => console.log('Server is running on port 3000'));
+
+app.listen(PORT, function (){ console.log(`Server is running on port ${PORT}`)
+});
