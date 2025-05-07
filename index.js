@@ -2,9 +2,9 @@
 const express = require('express');
 const PayOS = require('@payos/node');
 const cors = require("cors");
-const admin = require('firebase-admin');
-const { createHmac } = require('crypto');
-const { console } = require('inspector');
+// const admin = require('firebase-admin');
+// const { createHmac } = require('crypto');
+// const { console } = require('inspector');
 
 const PAYOS_CLIENT_ID = process.env.PAYOS_CLIENT_ID;
 const PAYOS_API_KEY = process.env.PAYOS_API_KEY;
@@ -35,7 +35,7 @@ const db = admin.firestore();
 
 // 👉 Route tạo link thanh toán
 // Server: /create-payment-link route
-app.post('/create-payment-link', async (req, res) => {
+app.post("/create-payment-link", async (req, res) => {
   const { amount, description, orderCode } = req.query;
   // if (!amount || !description || !orderCode) {
   //   return res.status(400).send("Vui lòng cung cấp amount, description và orderCode.");
@@ -54,9 +54,8 @@ app.post('/create-payment-link', async (req, res) => {
     ],
     returnUrl: `${YOUR_DOMAIN}/payment-success`,
     cancelUrl: `${YOUR_DOMAIN}/payment-cancel`,
-    // notifyUrl: `${YOUR_DOMAIN}/payment-callback`, // Keep webhook for server confirmation
   };
-
+  
   try {
     const paymentLink = await payos.createPaymentLink(order);
     // Store order details or associate with user if needed before redirecting
@@ -162,7 +161,7 @@ app.post("/receive-hook",async (req,res) => {
   console.log(req.body);
   res.json();
 });
-app.listen(3000,'0.0.0.0', () => console.log('Server is running on port 3000'));
+app.listen(3000, () => console.log('Server is running on port 3000'));
 
 app.listen(PORT, function (){ console.log(`Server is running on port ${PORT}`)
 });
