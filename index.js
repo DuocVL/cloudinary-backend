@@ -5,6 +5,7 @@ const cors = require("cors");
 require('dotenv').config();
 const admin = require('firebase-admin');
 const { createHmac } = require('crypto');
+const { ulid } = require('ulid');
 
 // Environment variables
 const PAYOS_CLIENT_ID = process.env.PAYOS_CLIENT_ID;
@@ -69,8 +70,14 @@ function isValidData(data, currentSignature, checksumKey) {
 // Route: create payment link
 app.get("/create-payment-link", async (req, res) => {
   try {
+    const { package} = req.query;
+    console.log("Received package:", package);
+    if (!package) {
+      return res.status(400).send("Package is required");
+    }
+    // Create a unique order code using ulid
     const order = {
-      orderCode: Number(String(Date.now()).slice(-6)),
+      orderCode: Number(String(Date.now())),
       amount: 2000,
       description: "Thanh toan don hang",
       items: [
