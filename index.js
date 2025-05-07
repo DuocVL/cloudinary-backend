@@ -10,8 +10,8 @@ const { createHmac } = require('crypto');
 const PAYOS_CLIENT_ID = process.env.PAYOS_CLIENT_ID;
 const PAYOS_API_KEY = process.env.PAYOS_API_KEY;
 const PAYOS_CHECKSUM_KEY = process.env.PAYOS_CHECKSUM_KEY;
-//const YOUR_DOMAIN = process.env.RAILWAY_STATIC_URL;
-const YOUR_DOMAIN = `http://localhost:3000`;
+const YOUR_DOMAIN = process.env.RAILWAY_STATIC_URL;
+//const YOUR_DOMAIN = `http://localhost:3000`;
 
 const payos = new PayOS(
   PAYOS_CLIENT_ID,
