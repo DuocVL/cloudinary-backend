@@ -10,8 +10,8 @@ const { createHmac } = require('crypto');
 const PAYOS_CLIENT_ID = process.env.PAYOS_CLIENT_ID;
 const PAYOS_API_KEY = process.env.PAYOS_API_KEY;
 const PAYOS_CHECKSUM_KEY = process.env.PAYOS_CHECKSUM_KEY;
-const YOUR_DOMAIN = process.env.RAILWAY_STATIC_URL;
-//const YOUR_DOMAIN = `http://localhost:3000`;
+//const YOUR_DOMAIN = process.env.RAILWAY_STATIC_URL;
+const YOUR_DOMAIN = `http://localhost:3000`;
 
 const payos = new PayOS(
   PAYOS_CLIENT_ID,
@@ -147,6 +147,8 @@ app.get('/payment-success', (req, res) => {
 });
 
 app.get('/payment-cancel', (req, res) => {
+  console.log('🔥 Payment canceled - query:', req.query);
+  res.send("Thanh toán bị hủy.");
   console.log('Payment canceled:', req.query);
   res.json({
     status: "cancel",
@@ -163,7 +165,7 @@ app.post("/receive-hook",async (req,res) => {
   console.log(req.body);
   res.json();
 });
-app.listen(3000, () => console.log('Server is running on port 3000'));
+app.listen(3000,'0.0.0.0', () => console.log('Server is running on port 3000'));
 
 app.listen(PORT, function (){ console.log(`Server is running on port ${PORT}`)
 });
