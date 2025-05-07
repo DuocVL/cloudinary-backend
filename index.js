@@ -1,32 +1,28 @@
-
+// server.js
 const express = require('express');
 const PayOS = require('@payos/node');
 const cors = require("cors");
 require('dotenv').config();
 const admin = require('firebase-admin');
 const { createHmac } = require('crypto');
-//const { console } = require('inspector');
 
+// Environment variables
 const PAYOS_CLIENT_ID = process.env.PAYOS_CLIENT_ID;
 const PAYOS_API_KEY = process.env.PAYOS_API_KEY;
 const PAYOS_CHECKSUM_KEY = process.env.PAYOS_CHECKSUM_KEY;
-const YOUR_DOMAIN = process.env.RAILWAY_STATIC_URL;
-//const YOUR_DOMAIN = `http://localhost:3000`;
+const YOUR_DOMAIN = process.env.RAILWAY_STATIC_URL || 'http://localhost:3000';
+const PORT = process.env.PORT || 3000;
 
-const payos = new PayOS(
-  PAYOS_CLIENT_ID,
-  PAYOS_API_KEY,
-  PAYOS_CHECKSUM_KEY,
-);
+// PayOS instance
+const payos = new PayOS(PAYOS_CLIENT_ID, PAYOS_API_KEY, PAYOS_CHECKSUM_KEY);
 
-// Serve static if needed
+// Express app setup
 const app = express();
 app.use(cors());
-app.use("/", express.static("public"));
+app.use(express.static("public"));
 app.use(express.json());
 
-
-//Firebase
+// Firebase admin init
 const serviceAccount = JSON.parse(process.env.GOOGLE_CREDENTIALS);
 if (!admin.apps.length) {
   admin.initializeApp({
@@ -35,44 +31,7 @@ if (!admin.apps.length) {
 }
 const db = admin.firestore();
 
-// 👉 Route tạo link thanh toán
-// Server: /create-payment-link route
-app.post("/create-payment-link", async (req, res) => {
-  const { amount, description, orderCode } = req.query;
-  // if (!amount || !description || !orderCode) {
-  //   return res.status(400).send("Vui lòng cung cấp amount, description và orderCode.");
-  // }
-
-  const order = {
-    orderCode: Number(String(Date.now()).slice(-6)),
-    amount: 2000,
-    description: "Thanh toan don hang",
-    items: [
-      {
-        name: "Mì tôm Hảo Hảo ly",
-        quantity: 1,
-        price: 2000,
-      },
-    ],
-    returnUrl: `${YOUR_DOMAIN}/payment-success`,
-    cancelUrl: `${YOUR_DOMAIN}/payment-cancel`,
-  };
-  
-  try {
-    const paymentLink = await payos.createPaymentLink(order);
-    // Store order details or associate with user if needed before redirecting
-    // e.g., await db.collection('pending_orders').doc(String(orderCode)).set({ ... });
-    res.redirect(303, paymentLink.checkoutUrl);
-  } catch (error) {
-    console.error("Error creating payment link:", error);
-    // Redirect to a generic error page or pass error info back?
-    res.status(500).send("Error creating payment link.");
-    // Maybe redirect to cancelUrl with an error flag?
-    // res.redirect(303, `<span class="math-inline">\{YOUR\_DOMAIN\}/payment\-cancel?status\=false&orderCode\=</span>{orderCode}&error=creation_failed`);
-  }
-});
-
-// 👉 Route payment callback (webhook)
+// Helpers
 function sortObjDataByKey(object) {
   return Object.keys(object)
     .sort()
@@ -87,7 +46,7 @@ function convertObjToQueryStr(object) {
     .filter((key) => object[key] !== undefined)
     .map((key) => {
       let value = object[key];
-      if (value && Array.isArray(value)) {
+      if (Array.isArray(value)) {
         value = JSON.stringify(value.map((val) => sortObjDataByKey(val)));
       }
       if ([null, undefined, "undefined", "null"].includes(value)) {
@@ -104,80 +63,79 @@ function isValidData(data, currentSignature, checksumKey) {
   const dataToSignature = createHmac("sha256", checksumKey)
     .update(dataQueryStr)
     .digest("hex");
-  return dataToSignature == currentSignature;
+  return dataToSignature === currentSignature;
 }
 
-app.post('/payment-callback', async (req, res) => {
-  console.log('Webhook received:', req.body);
+// Route: create payment link
+app.post("/create-payment-link", async (req, res) => {
+  try {
+    const order = {
+      orderCode: Number(String(Date.now()).slice(-6)),
+      amount: 2000,
+      description: "Thanh toan don hang",
+      items: [
+        {
+          name: "Mì tôm Hảo Hảo ly",
+          quantity: 1,
+          price: 2000,
+        },
+      ],
+      returnUrl: `${YOUR_DOMAIN}/payment-success`,
+      cancelUrl: `${YOUR_DOMAIN}/payment-cancel`,
+    };
 
+    const paymentLink = await payos.createPaymentLink(order);
+    res.status(200).json({ url: paymentLink.checkoutUrl });
+  } catch (error) {
+    console.error("Error creating payment link:", error);
+    res.status(500).json({ error: "Error creating payment link." });
+  }
+});
+
+// Route: webhook callback
+app.post("/payment-callback", async (req, res) => {
   const { data, signature } = req.body;
 
   try {
     const isValid = isValidData(data, signature, PAYOS_CHECKSUM_KEY);
     if (!isValid) {
-      console.warn('Invalid signature');
-      return res.status(400).send('Invalid signature');
+      console.warn("Invalid signature");
+      return res.status(400).send("Invalid signature");
     }
 
-    console.log('Payment Data:', data);
-    res.status(200).send('Webhook received successfully');
-
-    const transactionRef = db.collection('transactions').doc(String(data.orderCode));
-    await transactionRef.set({
+    await db.collection("transactions").doc(String(data.orderCode)).set({
       amount: data.amount,
       description: data.description,
       reference: data.reference,
       paymentLinkId: data.paymentLinkId,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
+
+    res.status(200).send("Webhook received successfully");
   } catch (error) {
-    console.error('Error handling webhook:', error);
-    res.status(500).send('Error handling webhook');
+    console.error("Error handling webhook:", error);
+    res.status(500).send("Error handling webhook");
   }
 });
 
-// 👉 Route trả về trạng thái thanh toán cho Android app
-// 👉 Route trả về trạng thái thanh toán cho Android app
-app.get('/payment-success', (req, res) => {
-  console.log('Payment success:', req.query);
-  res.json({
-    status: "success",
-    message: "Payment successful"
-  });
+// Route: payment result pages
+app.get("/payment-success", (req, res) => {
+  console.log("Payment success:", req.query);
+  res.json({ status: "success", message: "Payment successful" });
 });
 
-app.get('/payment-cancel', (req, res) => {
-  console.log('🔥 Payment canceled - query:', req.query);
-  res.send("Thanh toán bị hủy.");
-  console.log('Payment canceled:', req.query);
-  res.json({
-    status: "cancel",
-    message: "Payment canceled"
-  });
+app.get("/payment-cancel", (req, res) => {
+  console.log("Payment canceled:", req.query);
+  res.json({ status: "cancel", message: "Payment canceled" });
 });
 
+// Debug route for webhook testing
+app.post("/receive-hook", async (req, res) => {
+  console.log("[DEBUG] receive-hook payload:", req.body);
+  res.json({ received: true });
+});
 
 // Start server
-const PORT = process.env.PORT || 3030;
-
-// Start server
-app.post("/receive-hook",async (req,res) => {
-  console.log(req.body);
-  res.json();
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`✅ Server is running at http://localhost:${PORT}`);
 });
-app.listen(3000,'0.0.0.0', () => console.log('Server is running on port 3000'));
-
-app.listen(PORT, function (){ console.log(`Server is running on port ${PORT}`)
-});
-
-// //Start server
-// app.post("/receive-hook",async (req,res) => {
-//   console.log(req.body);
-//   res.json();
-// });
-// app.listen(3000, () => console.log('Server is running on port 3000'));
-
-
-// app.listen(3030, function () {
-//   console.log(`Server is listening on port 3030`);
-// });
