@@ -66,6 +66,9 @@ function isValidData(data, currentSignature, checksumKey) {
   return dataToSignature === currentSignature;
 }
 
+let globalUserId = null;
+let globalPackageId = null;
+
 app.get("/create-payment-link", async (req, res) => {
   try {
     const { userId , packageId } = req.query;
@@ -74,6 +77,8 @@ app.get("/create-payment-link", async (req, res) => {
     if (!packageId || !userId) {
       return res.status(400).send("Thiếu thông tin gói đăng ký hoặc thông tin người dùng.");
     }
+    globalUserId = userId;
+    globalPackageId = packageId;
 
     let amount;
     let description;
@@ -105,18 +110,20 @@ app.get("/create-payment-link", async (req, res) => {
       returnUrl: `${YOUR_DOMAIN}/payment-success`,
     }
 
+    // Sắp xếp theo đúng thứ tự alphabet (đúng format yêu cầu)
+    const sortedDataStr = `amount=${data.amount}&cancelUrl=${data.cancelUrl}&description=${data.description}&orderCode=${data.orderCode}&returnUrl=${data.returnUrl}`;
+
     // Tạo signature từ chuỗi trên và checksumKey của bạn
     const checksumKey = process.env.PAYOS_CHECKSUM_KEY;
     const signature = createHmac("sha256", checksumKey)
       .update(sortedDataStr)
       .digest("hex");
 
-    console.log("✅ Signature:", signature);
-
     // Tạo mã đơn hàng duy nhất sử dụng timestamp
     const order = {
       orderCode: orderCode,
-      amount: amount,
+      amount: 2000,
+      //amount: amount,
       description: `Thanh toán gói ${description}`,
       items: [
         {
@@ -142,29 +149,138 @@ app.get("/create-payment-link", async (req, res) => {
 
 // Route: webhook callback
 app.post("/payment-callback", async (req, res) => {
-  const { data, signature } = req.body;
+  const { code, desc, success, data, signature } = req.body;
+
+  // Kiểm tra dữ liệu webhook
+  if (!data || !signature) {
+    console.warn("❌ Missing data or signature in webhook payload");
+    return res.status(400).send("Missing data or signature");
+  }
 
   try {
+    // ✅ Verify HMAC signature
     const isValid = isValidData(data, signature, PAYOS_CHECKSUM_KEY);
     if (!isValid) {
-      console.warn("Invalid signature");
+      console.warn("❌ Invalid signature");
       return res.status(400).send("Invalid signature");
     }
 
+    // ✅ Kiểm tra các trường xác nhận giao dịch thành công
+    if (code !== "00" || desc !== "success" || success !== true) {
+      console.warn("❌ Webhook status indicates failure:", { code, desc, success });
+      return res.status(400).send("Invalid payment status");
+    }
+
+    const now = Date.now();
+    let month = 1;
+    if (globalPackageId == "1") {
+      month = 1;
+    } else if (globalPackageId == "2") {
+      month = 3;
+    } else if (globalPackageId == "3") {
+      month = 12;
+    } else {
+      month = 1;
+    }
+    const durationMonths = month;
+    const oneMonthMs = 30 * 24 * 60 * 60 * 1000;
+    const addedDuration = durationMonths * oneMonthMs;
+
+    const userRef = db.collection("users").doc(globalUserId);
+    const paymentsRef = userRef.collection("payments");
+
+    // Ghi giao dịch tổng quan
     await db.collection("transactions").doc(String(data.orderCode)).set({
+      userId: globalUserId,
+      packageId: globalPackageId,
+      webhookCode: code,
+      webhookDesc: desc,
+      webhookSuccess: success,
+      orderCode: data.orderCode,
       amount: data.amount,
       description: data.description,
+      accountNumber: data.accountNumber,
       reference: data.reference,
+      transactionDateTime: data.transactionDateTime,
+      currency: data.currency || "VND",
       paymentLinkId: data.paymentLinkId,
+      payosCode: data.code,
+      payosDesc: data.desc,
+      counterAccountBankId: data.counterAccountBankId,
+      counterAccountBankName: data.counterAccountBankName,
+      counterAccountName: data.counterAccountName,
+      counterAccountNumber: data.counterAccountNumber,
+      virtualAccountName: data.virtualAccountName,
+      virtualAccountNumber: data.virtualAccountNumber,
+      signature: signature,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    res.status(200).send("Webhook received successfully");
+    // Ghi giao dịch cá nhân
+    await paymentsRef.doc(String(data.orderCode)).set({
+      packageId: globalPackageId,
+      orderCode: data.orderCode,
+      amount: data.amount,
+      description: data.description,
+      counterAccountBankId: data.counterAccountBankId,
+      transactionDateTime: data.transactionDateTime,
+      counterAccountName: data.counterAccountName,
+      counterAccountNumber: data.counterAccountNumber,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    // Xử lý trạng thái gói
+    const statusRef = paymentsRef.doc("status");
+    const statusSnap = await statusRef.get();
+
+    if (!statusSnap.exists) {
+      // ❇️ Chưa có gói → tạo mới
+      await statusRef.set({
+        packageId: globalPackageId,
+        orderCode: data.orderCode,
+        amount: data.amount,
+        description: data.description,
+        startTime: now,
+        endTime: now + addedDuration,
+        transactionDateTime: data.transactionDateTime,
+        counterAccountName: data.counterAccountName,
+        counterAccountNumber: data.counterAccountNumber,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    } else {
+      const current = statusSnap.data();
+      const currentEnd = current.endTime || 0;
+
+      if (currentEnd > now) {
+        // ⏳ Gói còn hiệu lực → gia hạn thêm
+        await statusRef.update({
+          endTime: currentEnd + addedDuration,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      } else {
+        // ⌛ Gói đã hết hạn → reset
+        await statusRef.set({
+          packageId: globalPackageId,
+          orderCode: data.orderCode,
+          amount: data.amount,
+          description: data.description,
+          startTime: now,
+          endTime: now + addedDuration,
+          transactionDateTime: data.transactionDateTime,
+          counterAccountName: data.counterAccountName,
+          counterAccountNumber: data.counterAccountNumber,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      }
+    }
+    
+    res.status(200).send("✅ Webhook verified & transaction stored");
   } catch (error) {
-    console.error("Error handling webhook:", error);
-    res.status(500).send("Error handling webhook");
+    console.error("❌ Error processing webhook:", error);
+    res.status(500).send("Internal Server Error");
   }
 });
+
 
 // Route: payment result pages
 app.get("/payment-success", (req, res) => {
