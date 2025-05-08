@@ -150,7 +150,10 @@ app.get("/create-payment-link", async (req, res) => {
 // Route: webhook callback
 app.post("/payment-callback", async (req, res) => {
   const { code, desc, success, data, signature } = req.body;
-
+  console.log("✅ Webhook verified successfully:", { code, desc, success });
+  console.log("✅ Webhook data:", data);
+  console.log("userId:", globalUserId);
+  console.log("packageId:", globalPackageId);
   // Kiểm tra dữ liệu webhook
   if (!data || !signature) {
     console.warn("❌ Missing data or signature in webhook payload");
@@ -171,8 +174,7 @@ app.post("/payment-callback", async (req, res) => {
       return res.status(400).send("Invalid payment status");
     }
 
-    console.log("✅ Webhook verified successfully:", { code, desc, success });
-    console.log("✅ Webhook data:", data);
+    
 
     const now = Date.now();
     let month = 1;
