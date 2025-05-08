@@ -5,7 +5,6 @@ const cors = require("cors");
 require('dotenv').config();
 const admin = require('firebase-admin');
 const { createHmac } = require('crypto');
-const { ulid } = require('ulid');
 
 // Environment variables
 const PAYOS_CLIENT_ID = process.env.PAYOS_CLIENT_ID;
@@ -69,11 +68,11 @@ function isValidData(data, currentSignature, checksumKey) {
 
 app.get("/create-payment-link", async (req, res) => {
   try {
-    const { packageId } = req.query;
-    console.log("Received package ID:", packageId);
+    const { userId , packageId } = req.query;
+    console.log("Received request to create payment link:", req.query);
 
-    if (!packageId) {
-      return res.status(400).send("Thiếu thông tin gói đăng ký.");
+    if (!packageId || !userId) {
+      return res.status(400).send("Thiếu thông tin gói đăng ký hoặc thông tin người dùng.");
     }
 
     let amount;
@@ -82,25 +81,43 @@ app.get("/create-payment-link", async (req, res) => {
 
     if (packageId == "1") {
       amount = 30000;
-      description = "Tháng";
+      description = "tháng";
       itemName = "Gói theo tháng";
     } else if (packageId == "2") {
       amount = 99000;
-      description = "Quý";
+      description = "quý";
       itemName = "Gói theo quý";
     } else if (packageId == "3") {
       amount = 299000;
-      description = "Năm";
+      description = "năm";
       itemName = "Gói theo năm";
     } else {
       return res.status(400).send("Gói đăng ký không hợp lệ.");
     }
 
+    let orderCode = Number(String(Date.now()))
+
+    const data = {
+      amount: amount,
+      cancelUrl: `${YOUR_DOMAIN}/payment-cancel`,
+      description: `Thanh toán gói ${description}`,
+      orderCode: orderCode,
+      returnUrl: `${YOUR_DOMAIN}/payment-success`,
+    }
+
+    // Tạo signature từ chuỗi trên và checksumKey của bạn
+    const checksumKey = process.env.PAYOS_CHECKSUM_KEY;
+    const signature = createHmac("sha256", checksumKey)
+      .update(sortedDataStr)
+      .digest("hex");
+
+    console.log("✅ Signature:", signature);
+
     // Tạo mã đơn hàng duy nhất sử dụng timestamp
     const order = {
-      orderCode: Number(String(Date.now())),
+      orderCode: orderCode,
       amount: amount,
-      description: `Thanh toán gói ${description}`, // Giới hạn 25 ký tự
+      description: `Thanh toán gói ${description}`,
       items: [
         {
           name: itemName,
@@ -110,6 +127,8 @@ app.get("/create-payment-link", async (req, res) => {
       ],
       returnUrl: `${YOUR_DOMAIN}/payment-success`,
       cancelUrl: `${YOUR_DOMAIN}/payment-cancel`,
+      expiredAt : Math.floor(Date.now() /1000) + 5 * 60, // 5 phút
+      signature : signature
     };
     console.log("Tạo liên kết thanh toán với đơn hàng:", order);
 
