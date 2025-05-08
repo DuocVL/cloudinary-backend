@@ -171,6 +171,9 @@ app.post("/payment-callback", async (req, res) => {
       return res.status(400).send("Invalid payment status");
     }
 
+    console.log("✅ Webhook verified successfully:", { code, desc, success });
+    console.log("✅ Webhook data:", data);
+
     const now = Date.now();
     let month = 1;
     if (globalPackageId == "1") {
