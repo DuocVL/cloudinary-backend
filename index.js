@@ -103,7 +103,8 @@ app.get("/create-payment-link", async (req, res) => {
 
         const order = {
             orderCode: orderCode,
-            amount: packageDetails.amount, // Use actual package amount
+            //amount: packageDetails.amount, // Use actual package amount
+            amount: 2000,
             description: `Thanh toán gói ${packageDetails.description}`,
             items: [
                 {
