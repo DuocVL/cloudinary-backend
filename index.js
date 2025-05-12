@@ -151,7 +151,6 @@ app.get("/create-payment-link", async (req, res) => {
 app.post("/payment-callback", async (req, res) => {
   
   console.log("[DEBUG] receive-hook payload:", req.body);
-  res.json({ received: true });
   const { code, desc, success, data, signature } = req.body;
   console.log("✅ Webhook verified successfully:", { code, desc, success });
   console.log("✅ Webhook data:", data);
@@ -297,12 +296,6 @@ app.get("/payment-success", (req, res) => {
 app.get("/payment-cancel", (req, res) => {
   console.log("Payment canceled:", req.query);
   res.json(req.query);
-});
-
-// Debug route for webhook testing
-app.post("/receive-hook", async (req, res) => {
-  console.log("[DEBUG] receive-hook payload:", req.body);
-  res.json({ received: true });
 });
 
 // Start server
